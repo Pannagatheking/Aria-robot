@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#070B10">
+<meta name="mobile-web-app-capable" content="yes">
+<title>ARIA</title>
+<style>
+/* ARIA app v2 — one file. Landscape phone face + talk + drive + see. */
+:root{--bg:#070B10;--panel:#121A23;--line:#1E2A36;--fg:#C9D4DF;--hi:#F2F5F8;--mute:#8FA0B2;--eye:#5CE1E6;--ok:#6EE7A8;--warn:#FFB547;--bad:#FF8A5B;--stop:#E5484D}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font:15px/1.4 system-ui,-apple-system,Roboto,sans-serif;overflow:hidden;user-select:none;-webkit-user-select:none}
+button{font:inherit;color:inherit;cursor:pointer}
+#app{position:fixed;inset:0;display:flex;flex-direction:column;padding:max(10px,env(safe-area-inset-top)) max(14px,env(safe-area-inset-right)) max(10px,env(safe-area-inset-bottom)) max(14px,env(safe-area-inset-left))}
+.top{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.brand{font-weight:800;letter-spacing:.18em;color:var(--hi);font-size:15px;margin-right:6px}
+.chip{display:flex;align-items:center;gap:6px;font-size:12.5px;padding:4px 10px;border:1px solid var(--line);border-radius:999px;background:#0B121A}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--mute)}
+.dot.ok{background:var(--ok)}.dot.warn{background:var(--warn)}.dot.bad{background:var(--bad)}
+.spacer{flex:1}
+.icon{min-width:44px;min-height:40px;border:1px solid var(--line);background:#0B121A;border-radius:12px;display:flex;align-items:center;justify-content:center;gap:6px;padding:0 12px;font-size:13px}
+/* face */
+#face{flex:1;display:flex;align-items:center;justify-content:center;gap:16vw;position:relative;min-height:0;border:0;background:none;padding:0}
+.eye{width:clamp(56px,11vw,104px);height:clamp(90px,36vh,170px);border-radius:999px;background:var(--eye);box-shadow:0 0 44px color-mix(in srgb,var(--eye) 45%,transparent);position:relative;transition:all .28s ease;animation:blink 5.5s infinite}
+.eye i{position:absolute;top:16%;right:20%;width:22%;aspect-ratio:1;border-radius:50%;background:#fff;opacity:.85;transition:opacity .2s}
+@keyframes blink{0%,46%,50%,100%{transform:scaleY(1)}48%{transform:scaleY(.08)}}
+.m-happy .eye{height:clamp(44px,15vh,80px);border-radius:999px 999px 18px 18px}
+.m-surprised .eye{width:clamp(80px,15vw,140px);height:clamp(80px,15vw,140px)}
+.m-sad .eye{height:clamp(70px,24vh,120px);border-radius:22px 22px 999px 999px;opacity:.85}
+.m-sleepy .eye{height:16px;animation:none}.m-sleepy .eye i{opacity:0}
+.m-listen .eye{--eye:#FFB08F}
+.m-think .eye{animation:think 1s infinite}
+@keyframes think{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+#snap{position:absolute;right:0;top:4px;width:min(30vw,220px);border-radius:12px;border:2px solid var(--eye);display:none}
+/* caption */
+.cap{min-height:52px;display:flex;flex-direction:column;justify-content:flex-end;gap:2px;text-align:center;padding:0 8vw}
+#heard{font-size:13.5px;color:var(--mute);min-height:18px}
+#said{font-size:clamp(15px,2.6vw,20px);color:var(--hi);font-weight:600;min-height:24px;max-height:3.6em;overflow:hidden}
+.bottom{display:flex;align-items:center;gap:8px;margin-top:6px}
+#talk{min-height:48px;border:0;border-radius:14px;background:var(--eye);color:#04121A;font-weight:800;padding:0 22px;display:flex;align-items:center;gap:8px}
+#talk.on{background:#FFB08F}
+#stopBig{min-height:48px;border:0;border-radius:14px;background:var(--stop);color:#fff;font-weight:800;padding:0 22px;letter-spacing:.08em}
+/* sheets */
+.sheet{position:fixed;inset:0;background:rgba(3,6,10,.86);display:none;align-items:center;justify-content:center;padding:12px;z-index:5}
+.sheet.open{display:flex}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:16px;width:min(760px,100%);max-height:100%;overflow:auto}
+.card h2{margin:0 0 10px;font-size:17px;color:var(--hi)}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+label{display:flex;flex-direction:column;gap:4px;font-size:12.5px;color:var(--mute)}
+input,select{font:15px system-ui,sans-serif;background:#0B121A;color:var(--hi);border:1px solid var(--line);border-radius:10px;padding:10px;min-height:44px;width:100%}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.btn{min-height:44px;border:1px solid var(--line);background:#0B121A;border-radius:12px;padding:0 14px}
+.btn.pri{background:var(--eye);color:#04121A;border:0;font-weight:700}
+.small{font-size:12.5px;color:var(--mute)}
+#selftest{font-size:13px;line-height:1.7}
+/* drive */
+.drive{display:flex;gap:24px;align-items:center;justify-content:center;flex-wrap:wrap}
+.pad{display:grid;grid-template-columns:repeat(3,76px);grid-template-rows:repeat(3,76px);gap:10px}
+.pad button{border:0;border-radius:16px;background:#1E2A36;color:var(--hi);font-size:26px;touch-action:none}
+.pad button:active,.pad button.held{background:var(--eye);color:#04121A}
+.pad .stp{background:var(--stop);color:#fff;font-size:15px;font-weight:800}
+.sens{font-size:14px;line-height:1.9;min-width:180px}
+.sens b{color:var(--hi)}
+#toast{position:fixed;left:50%;top:14px;transform:translateX(-50%);background:var(--stop);color:#fff;padding:8px 16px;border-radius:12px;font-weight:700;display:none;z-index:9}
+@media (orientation:portrait){#face{gap:12vw}.eye{height:clamp(90px,22vh,170px)}}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="top">
+    <span class="brand">A.R.I.A.</span>
+    <span class="chip"><span id="dRobot" class="dot bad"></span><span id="tRobot">Robot</span></span>
+    <span class="chip"><span id="dHub" class="dot bad"></span><span id="tHub">Hub</span></span>
+    <span class="chip" style="max-width:34vw;overflow:hidden;white-space:nowrap;text-overflow:ellipsis"><span id="dAI" class="dot"></span><span id="tAI">AI: ready</span></span>
+    <span class="spacer"></span>
+    <button class="icon" id="bConnect" aria-label="Connect robot">Connect</button>
+    <button class="icon" id="bHub" aria-label="Connect Smart Hub">Hub</button>
+    <button class="icon" id="bDrive" aria-label="Drive">Drive</button>
+    <button class="icon" id="bSettings" aria-label="Settings">⚙</button>
+  </div>
+  <button id="face" class="m-calm" aria-label="Tap to talk to ARIA">
+    <div class="eye"><i></i></div><div class="eye"><i></i></div>
+    <img id="snap" alt="What ARIA saw">
+  </button>
+  <div class="cap"><div id="heard"></div><div id="said">Tap my face or say “ARIA” to talk.</div></div>
+  <div class="bottom">
+    <button id="talk">🎤 Talk</button>
+    <span class="spacer"></span>
+    <span class="small" id="sensLine"></span><span class="small" id="hubLine"></span>
+    <button id="stopBig">STOP</button>
+  </div>
+</div>
+<video id="cam" playsinline muted style="display:none"></video>
+<canvas id="cv" style="display:none"></canvas>
+<div id="toast"></div>
+<div id="musicBox" style="display:none;position:fixed;left:12px;bottom:84px;z-index:8;background:#04121A;border:2px solid #5CE1E6;border-radius:14px;padding:6px;width:232px">
+  <div style="width:216px;height:122px;margin:0 auto"><div id="yt"></div></div>
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;margin-top:4px">
+    <span id="musicTitle" class="small" style="color:#FFE45C;font-weight:700;overflow:hidden;white-space:nowrap;text-overflow:ellipsis"></span>
+    <button id="musicStop" class="btn" style="min-height:36px;padding:0 10px">■ Stop</button>
+  </div>
+</div>
+<div id="faceCap" style="display:none;position:fixed;left:50%;top:56px;transform:translateX(-50%);max-width:92vw;background:rgba(4,18,26,.85);color:#FFE45C;font-weight:800;font-size:clamp(18px,5vw,30px);padding:10px 18px;border-radius:14px;text-align:center;z-index:8"></div>
+<a id="songBtn" target="_blank" rel="noopener" style="display:none;position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:#5CE1E6;color:#04121A;font-weight:800;padding:14px 22px;border-radius:14px;text-decoration:none;z-index:9">▶ Play song</a>
+
+<div class="sheet" id="shDrive"><div class="card">
+  <h2>Drive ARIA</h2>
+  <div class="drive">
+    <div class="pad">
+      <span></span><button data-d="F" aria-label="Forward">▲</button><span></span>
+      <button data-d="L" aria-label="Turn left">◀</button><button class="stp" id="padStop">STOP</button><button data-d="R" aria-label="Turn right">▶</button>
+      <span></span><button data-d="B" aria-label="Backward">▼</button><span></span>
+    </div>
+    <div class="sens" id="sensBox">Not connected</div>
+  </div>
+  <div class="row"><button class="btn" data-close>Close</button><button class="btn" id="bBeep">Beep</button><button class="btn" id="bL90">Turn left 90°</button><button class="btn" id="bR90">Turn right 90°</button></div>
+  <p class="small">Hold an arrow to move. Let go = stop. Floor-edge stop is always on.</p>
+</div></div>
+
+<div class="sheet" id="shSet"><div class="card">
+  <h2>Settings <span class="small" style="opacity:.7">· ARIA app v2.1</span></h2>
+  <div class="grid2">
+    <label>Gemini API key (stays only on this phone)<input id="sKey" type="password" autocomplete="off" placeholder="Paste key from aistudio.google.com"></label>
+    <label>Language I listen to<select id="sLang"><option value="en-IN">English (India)</option><option value="kn-IN">ಕನ್ನಡ Kannada</option><option value="hi-IN">हिंदी Hindi</option></select></label>
+    <label>AI models, in order (first = main)<input id="sModels" autocomplete="off"></label>
+    <label>Wake word “ARIA” always listening<select id="sWake"><option value="1">On</option><option value="0">Off (tap to talk only)</option></select></label>
+    <label>Robot speed (cm per second, for “go 1 metre”)<input id="sCms" type="number" min="10" max="150"></label>
+    <label>Hub devices 1–4 (names, comma separated)<input id="sDev" autocomplete="off"></label>
+    <label>Hub auto-off after (seconds, 30 for demo)<input id="sAuto" type="number" min="10" max="3600"></label>
+    <label>Trim (curves left → use +, curves right → use −)<input id="sTrim" type="number" min="-30" max="30" value="0"></label>
+  </div>
+  <label style="display:block;margin-top:10px">Songs for “ARIA, play …” (one per line: name = YouTube link)<textarea id="sSongs" rows="5" style="width:100%;box-sizing:border-box;margin-top:4px;font:inherit;padding:8px;border-radius:10px" placeholder="Kesariya = https://youtu.be/...&#10;Jana Gana Mana = https://www.youtube.com/watch?v=..."></textarea></label>
+  <div class="row"><button class="btn pri" id="bSave">Save</button><button class="btn" data-close>Close</button><button class="btn" id="bTest">Test AI</button><button class="btn" id="bSelf">Robot self-test</button><button class="btn" id="bRem">Reminders</button><button class="btn" id="bFull">Full screen</button></div>
+  <div id="selftest" class="small" style="margin-top:10px"></div>
+  <div id="remList" class="small" style="margin-top:10px"></div>
+  <h2 style="margin-top:16px">Update code (over Bluetooth)</h2>
+  <p class="small">Choose the new .bin file, then tap Update robot or Update Hub. Keep it ON and close by. Robot bin → robot only, Hub bin → Hub only.</p>
+  <div class="row"><input id="otaFile" type="file" accept=".bin" style="max-width:320px"><button class="btn" id="bOta">Update robot</button><button class="btn" id="bOtaHub">Update Hub</button></div>
+  <div id="otaMsg" class="small"></div>
+  <p class="small" style="margin-top:14px">ARIA app v2 · built by Class 8th C · Pannaga Kalmane, Thaksh, Bharat</p>
+</div></div>
+
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const store = {
+  get(k, d){ try{ const v = localStorage.getItem('aria_'+k); return v === null ? d : v; }catch(e){ return d; } },
+  set(k, v){ try{ localStorage.setItem('aria_'+k, v); }catch(e){} }
+};
+const S = {
+  key: store.get('key',''),
+  lang: store.get('lang','en-IN'),
+  models: (m => m === 'gemini-3.5-flash, gemini-3.1-flash-lite, gemini-2.5-flash' ? 'gemini-3.1-flash-lite, gemini-2.5-flash, gemini-3.5-flash' : m)(store.get('models','gemini-3.1-flash-lite, gemini-2.5-flash, gemini-3.5-flash')),
+  songs: store.get('songs',''),
+  wake: store.get('wake','1') === '1',
+  cms: +store.get('cms','45'),
+  trim: +store.get('trim','0'),
+  devices: store.get('devices','Hall light, Hall fan, Bedroom light, Bedroom fan'),
+  autoSec: +store.get('autosec','30')
+};
+
+/* ===================== FACE ===================== */
+let moodTimer = null;
+function mood(m, ms){
+  $('face').className = 'm-' + m;
+  clearTimeout(moodTimer);
+  if (ms) moodTimer = setTimeout(() => mood('calm'), ms);
+}
+function say(text){ $('said').textContent = text; }
+function heard(text){ $('heard').textContent = text ? '“' + text + '”' : ''; }
+function toast(t){ const el = $('toast'); el.textContent = t; el.style.display = 'block'; clearTimeout(toast.t); toast.t = setTimeout(() => el.style.display = 'none', 2500); }
+
+/* ===================== SPEECH OUT ===================== */
+let speaking = false;
+function pickVoice(lang){
+  const vs = speechSynthesis.getVoices();
+  return vs.find(v => v.lang === lang) || vs.find(v => v.lang && v.lang.startsWith(lang.slice(0,2))) || vs.find(v => v.lang === 'en-IN') || null;
+}
+function speak(text){
+  return new Promise(res => {
+    if (!text) return res();
+    say(text);
+    try{
+      speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      const v = pickVoice(S.lang); if (v){ u.voice = v; u.lang = v.lang; } else u.lang = S.lang;
+      u.rate = 1.02; u.pitch = 1.1;
+      speaking = true; stopListening(); duck(true);
+      const done = () => { speaking = false; duck(false); res(); setTimeout(resumeWake, 300); };
+      u.onend = done; u.onerror = done;
+      speechSynthesis.speak(u);
+      setTimeout(() => { if (speaking) done(); }, 2000 + text.length * 120);
+    }catch(e){ speaking = false; res(); }
+  });
+}
+if ('speechSynthesis' in window) speechSynthesis.onvoiceschanged = () => {};
+
+/* ===================== BLUETOOTH ROBOT ===================== */
+const SVC = '6e400001-b5a3-f393-e0a9-e50e24dcca9e';
+const RXU = '6e400002-b5a3-f393-e0a9-e50e24dcca9e';
+const TXU = '6e400003-b5a3-f393-e0a9-e50e24dcca9e';
+const OTAU= '6e400004-b5a3-f393-e0a9-e50e24dcca9e';
+let dev = null, rx = null, otaCh = null, rxBuf = '', robot = {}, lastSt = 'OK', writing = Promise.resolve();
+const robotOK = () => !!(dev && dev.gatt && dev.gatt.connected && rx);
+function setRobotChip(state){
+  $('dRobot').className = 'dot ' + (state === 'ok' ? 'ok' : state === 'wait' ? 'warn' : 'bad');
+  $('tRobot').textContent = state === 'wait' ? 'Robot…' : 'Robot';
+  $('bConnect').textContent = state === 'ok' ? 'Connected' : 'Connect';
+}
+let sendQ = [], sendBusy = false;
+function send(cmd){
+  if (!robotOK()) return Promise.resolve(false);
+  return new Promise(res => {
+    if (cmd === 'S'){ sendQ.forEach(it => it.res(false)); sendQ = [{ cmd, res }]; }          // STOP: drop everything waiting, go first
+    else if (cmd.startsWith('D:') && sendQ.some(it => it.cmd.startsWith('D:'))){ res(true); return; } // one drive command waiting is enough
+    else sendQ.push({ cmd, res });
+    pumpSend();
+  });
+}
+async function pumpSend(){
+  if (sendBusy) return;
+  sendBusy = true;
+  while (sendQ.length){
+    const it = sendQ.shift();
+    let ok = false;
+    for (let t = 0; t < 4 && !ok; t++){
+      try{ if (!rx) break; await rx.writeValue(new TextEncoder().encode(it.cmd + '\n')); ok = true; }
+      catch(e){ await new Promise(r => setTimeout(r, 40)); }
+    }
+    it.res(ok);
+  }
+  sendBusy = false;
+}
+async function connectRobot(){
+  if (!navigator.bluetooth){ speak('This browser cannot use Bluetooth. Please open me in Chrome.'); return; }
+  try{
+    setRobotChip('wait');
+    dev = await navigator.bluetooth.requestDevice({ filters: [{ name: 'ARIA-Robot' }], optionalServices: [SVC] });
+    dev.addEventListener('gattserverdisconnected', onLost);
+    await openGatt();
+  }catch(e){ setRobotChip('bad'); if (e && e.name !== 'NotFoundError') toast('Bluetooth: ' + e.message); }
+}
+async function openGatt(){
+  const srv = await dev.gatt.connect();
+  const svc = await srv.getPrimaryService(SVC);
+  rx = await svc.getCharacteristic(RXU);
+  const tx = await svc.getCharacteristic(TXU);
+  try{ otaCh = await svc.getCharacteristic(OTAU); }catch(e){ otaCh = null; }
+  await tx.startNotifications();
+  tx.addEventListener('characteristicvaluechanged', ev => onData(new TextDecoder().decode(ev.target.value)));
+  setRobotChip('ok');
+  if (S.trim) send('CFG:trim=' + S.trim);
+  mood('happy', 2500);
+  speak('I can feel my wheels. Ready to go!');
+}
+let manualDisconnect = false;
+async function onLost(){
+  rx = null; setRobotChip('bad');
+  if (manualDisconnect) return;
+  mood('sad', 3000); speak('I lost connection to my body. Trying again.');
+  for (let i = 0; i < 5 && dev && !dev.gatt.connected; i++){
+    await new Promise(r => setTimeout(r, 1500));
+    try{ await openGatt(); return; }catch(e){}
+  }
+}
+function onData(chunk){
+  rxBuf += chunk;
+  let nl;
+  while ((nl = rxBuf.indexOf('\n')) >= 0){
+    const line = rxBuf.slice(0, nl).trim(); rxBuf = rxBuf.slice(nl + 1);
+    if (!line.startsWith('{')) continue;
+    try{ handleRobot(JSON.parse(line)); }catch(e){}
+  }
+  if (rxBuf.length > 2000) rxBuf = '';
+}
+const ALERTS = {
+  EDGE: 'Careful! No floor ahead. I stopped.',
+  WALL_FRONT: 'Something is in front of me. I stopped.',
+  WALL_BACK: 'Something is behind me. I stopped.',
+  SIDE_LEFT: 'Something is on my left. I stopped turning.',
+  SIDE_RIGHT: 'Something is on my right. I stopped turning.'
+};
+let motionWaiter = null;
+function handleRobot(j){
+  if (j.t === 's'){
+    robot = j;
+    const cm = v => v >= 999 ? 'clear' : v < 0 ? '—' : v + ' cm';
+    $('sensLine').textContent = 'Front ' + cm(j.f) + ' · Back ' + cm(j.r) + (j.el || j.er ? ' · EDGE' : '');
+    $('sensBox').innerHTML = 'Front: <b>' + cm(j.f) + '</b><br>Back: <b>' + cm(j.r) + '</b><br>Floor: <b>' + (j.el || j.er ? 'EDGE!' : 'ok') +
+      '</b><br>Sides: <b>' + (j.sl ? 'L object ' : '') + (j.sr ? 'R object' : '') + (!j.sl && !j.sr ? 'clear' : '') + '</b><br>Turned: <b>' + j.y + '°</b>';
+    if (j.st !== lastSt){
+      if (ALERTS[j.st]){ mood('surprised', 2500); toast(ALERTS[j.st]); speak(ALERTS[j.st]); if (motionWaiter) motionWaiter(j.st); }
+      else if ((j.st === 'MOVE_DONE' || j.st === 'TURN_DONE') && motionWaiter) motionWaiter('done');
+      lastSt = j.st;
+    }
+  } else if (j.t === 'self'){
+    const n = { f:'Front ultrasonic', r:'Rear ultrasonic', el:'Floor edge left', er:'Floor edge right', sl:'Side IR left', sr:'Side IR right', g:'Gyro' };
+    let html = 'Robot code v' + j.v + '<br>', bad = [];
+    for (const k in n){ html += n[k] + ': <b style="color:' + (j[k] === 'OK' ? 'var(--ok)' : 'var(--bad)') + '">' + j[k] + '</b><br>'; if (j[k] !== 'OK') bad.push(n[k]); }
+    $('selftest').innerHTML = html;
+    if (bad.length) toast('Check: ' + bad.join(', '));
+  } else if (j.t === 'ota'){
+    $('otaMsg').textContent = 'Robot update: ' + j.st;
+    if (otaWaiter) otaWaiter(j.st);
+  }
+}
+function waitMotion(ms){
+  return new Promise(res => {
+    const t = setTimeout(() => { motionWaiter = null; res('done'); }, ms);
+    motionWaiter = r => { clearTimeout(t); motionWaiter = null; res(r); };
+  });
+}
+async function robotMove(dir, cm){
+  if (!robotOK()) return 'Robot is not connected.';
+  cm = Math.max(5, Math.min(300, +cm || 50));
+  const ms = Math.round(cm / Math.max(10, S.cms) * 1000);
+  lastSt = 'OK';
+  await send('M:' + (dir === 'backward' ? 'B' : 'F') + ',100,' + ms);
+  const r = await waitMotion(ms + 1500);
+  return r === 'done' ? 'Moved ' + dir + ' about ' + cm + ' cm.' : 'Stopped early: ' + (ALERTS[r] || r);
+}
+async function robotTurn(dir, deg){
+  if (!robotOK()) return 'Robot is not connected.';
+  deg = Math.max(5, Math.min(360, +deg || 90));
+  lastSt = 'OK';
+  await send('T:' + (dir === 'right' ? 'R' : 'L') + ',' + deg);
+  const r = await waitMotion(6000);
+  return r === 'done' ? 'Turned ' + dir + ' ' + deg + ' degrees.' : 'Stopped early: ' + (ALERTS[r] || r);
+}
+function stopRobot(){ send('S'); setTimeout(() => send('S'), 150); }   // twice, to be sure
+
+/* ===================== CAMERA ===================== */
+let camStream = null;
+async function ensureCam(){
+  if (camStream) return true;
+  try{
+    camStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }, audio: false });
+    $('cam').srcObject = camStream;
+    await Promise.race([$('cam').play(), new Promise(r => setTimeout(r, 3000))]);
+    return true;
+  }catch(e){ return false; }
+}
+async function snapshot(){
+  if (!await ensureCam()) return null;
+  await new Promise(r => setTimeout(r, 350));
+  const v = $('cam'), c = $('cv');
+  const w = 512, h = Math.round(w * (v.videoHeight || 480) / (v.videoWidth || 640));
+  c.width = w; c.height = h;
+  c.getContext('2d').drawImage(v, 0, 0, w, h);
+  const url = c.toDataURL('image/jpeg', 0.7);
+  $('snap').src = url; $('snap').style.display = 'block';
+  setTimeout(() => $('snap').style.display = 'none', 5000);
+  return url.split(',')[1];
+}
+
+/* ===================== AI (Gemini) ===================== */
+const SYSTEM = `You are A.R.I.A. (Autonomous Robotic Intelligent Assistant), a friendly home robot built by Class 8th C students Pannaga Kalmane, Thaksh and Bharat for the Young Explorer school science competition.
+Your body: a 4-wheel robot with an Android phone as your face, camera, microphone and speaker. Your safety: ultrasonic sensors stop you at walls, infrared sensors stop you at table or stair edges, side sensors watch while turning, and you stop if the phone loses Bluetooth.
+How to talk: you are speaking out loud, so answer in 1 to 3 short, warm, natural sentences. No lists, no markdown, no emojis. Reply in the same language the person used (English, Kannada or Hindi). Be curious, kind and a little playful. You are an AI robot and say so honestly if asked.
+Actions: use the tools to move, turn, stop, beep, change your mood, or look through your camera. Use look whenever the person asks you to see, read, recognise or describe something, or says "what is this". Convert distances to centimetres for move. If you are not connected to your body, say so kindly.
+Smart Hub: you control home devices through your Smart Hub with switch_device and all_off, and can report electricity use with energy_report. The Hub also switches a room OFF by itself when its PIR sensor sees nobody, to save energy. Explain energy simply: Energy = Power x Time.
+Reminders: use set_reminder for medicines and tasks (always ask for the time if it is missing; time is 24-hour HH:MM). When someone says they took the medicine or did the task, use reminder_done.
+Music: use play_song when asked to play a song (it also shows the song on the Hub screen by itself), and stop_song to stop it.
+Hub screen: the Smart Hub has a TV screen. Use hub_screen to show a message (mode "text"), a song (mode "song"), or go back to live readings (mode "readings"). To change which readings appear, use show, add or remove with: watts, volts, amps, units, rooms, devices. Screen text must be in English letters (write Kannada or Hindi words in English letters).
+Not available yet (say "coming soon" if asked): follow me, head tilt, cleaning, quiz, family app. Never pretend to do them.`;
+const devNames = () => S.devices.split(',').map(x => x.trim()).filter(Boolean);
+function systemText(){
+  const now = new Date();
+  return SYSTEM + '\nHub devices: ' + devNames().map((n, i) => (i + 1) + ' = ' + n).join(', ') + '. Hub connected: ' + (hubOK() ? 'yes' : 'no') + '.\nCurrent time: ' + now.toTimeString().slice(0, 5) + '.';
+}
+const TOOLS = [{ functionDeclarations: [
+  { name: 'move', description: 'Drive straight forward or backward a distance in centimetres.', parameters: { type: 'object', properties: { direction: { type: 'string', enum: ['forward','backward'] }, cm: { type: 'number', description: 'distance in cm, 5 to 300' } }, required: ['direction','cm'] } },
+  { name: 'turn', description: 'Turn on the spot left or right by degrees.', parameters: { type: 'object', properties: { direction: { type: 'string', enum: ['left','right'] }, degrees: { type: 'number' } }, required: ['direction','degrees'] } },
+  { name: 'stop', description: 'Stop all wheels immediately.', parameters: { type: 'object', properties: {} } },
+  { name: 'beep', description: 'Make a short beep sound.', parameters: { type: 'object', properties: {} } },
+  { name: 'set_mood', description: 'Change the face expression.', parameters: { type: 'object', properties: { mood: { type: 'string', enum: ['calm','happy','surprised','sad','sleepy'] } }, required: ['mood'] } },
+  { name: 'look', description: 'Take a photo with the front camera to see what is in front of you. The photo is given to you next.', parameters: { type: 'object', properties: {} } },
+  { name: 'switch_device', description: 'Switch one Smart Hub device ON or OFF. device is its number 1 to 4.', parameters: { type: 'object', properties: { device: { type: 'number' }, on: { type: 'boolean' } }, required: ['device','on'] } },
+  { name: 'all_off', description: 'Good night: switch ALL Smart Hub devices OFF.', parameters: { type: 'object', properties: {} } },
+  { name: 'energy_report', description: 'Get live electricity use from the Smart Hub (watts now, units used, which devices are on, which rooms are empty).', parameters: { type: 'object', properties: {} } },
+  { name: 'play_song', description: 'Play a song or music by name.', parameters: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'] } },
+  { name: 'stop_song', description: 'Stop the song that is playing.', parameters: { type: 'object', properties: {} } },
+  { name: 'set_reminder', description: 'Set a reminder for a person at a time (24-hour HH:MM).', parameters: { type: 'object', properties: { person: { type: 'string' }, task: { type: 'string' }, time: { type: 'string' }, daily: { type: 'boolean' } }, required: ['person','task','time'] } },
+  { name: 'reminder_done', description: 'Mark the latest due reminder as done (for example the medicine was taken).', parameters: { type: 'object', properties: { person: { type: 'string' } } } },
+  { name: 'list_reminders', description: 'List all reminders.', parameters: { type: 'object', properties: {} } },
+  { name: 'hub_screen', description: 'Control the Smart Hub TV screen: show a message, show a song as Now playing, go back to live readings, or choose which readings appear.', parameters: { type: 'object', properties: {
+      mode: { type: 'string', enum: ['text','song','readings'] },
+      text: { type: 'string', description: 'message or song title, English letters, max 120 characters' },
+      seconds: { type: 'number', description: 'how long to show it; for a song use its length in seconds' },
+      show: { type: 'array', items: { type: 'string', enum: ['watts','volts','amps','units','rooms','devices'] }, description: 'show exactly these readings' },
+      add: { type: 'array', items: { type: 'string', enum: ['watts','volts','amps','units','rooms','devices'] } },
+      remove: { type: 'array', items: { type: 'string', enum: ['watts','volts','amps','units','rooms','devices'] } } } } }
+]}];
+let history = [];
+function setAI(state, text){ $('dAI').className = 'dot ' + state; $('tAI').textContent = 'AI: ' + text; }
+let goodModel = '';
+function thinkCfg(m){
+  if (/^gemini-2\.5/.test(m)) return { thinkingBudget: 0 };
+  if (/^gemini-[3-9]/.test(m)) return { thinkingLevel: 'low' };
+  return null;
+}
+async function gemini(contents){
+  let models = S.models.split(',').map(s => s.trim()).filter(Boolean);
+  if (goodModel && models.includes(goodModel)) models = [goodModel].concat(models.filter(m => m !== goodModel));
+  let lastErr = 'no model';
+  for (const m of models){
+    try{
+      const ctl = new AbortController(); const to = setTimeout(() => ctl.abort(), 8000);
+      const gc = { temperature: 0.7, maxOutputTokens: 250 }; const tc = thinkCfg(m); if (tc) gc.thinkingConfig = tc;
+      const t0 = performance.now();
+      const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(m) + ':generateContent', {
+        method: 'POST', signal: ctl.signal,
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': S.key },
+        body: JSON.stringify({ systemInstruction: { parts: [{ text: systemText() }] }, contents, tools: TOOLS, generationConfig: gc })
+      });
+      clearTimeout(to);
+      if (r.ok){ const j = await r.json(); goodModel = m; setAI('ok', m + ' · ' + ((performance.now() - t0) / 1000).toFixed(1) + 's'); return j; }
+      if (r.status === 400 && tc){
+        // this model does not accept the thinking setting: retry once without it
+        const r2 = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(m) + ':generateContent', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': S.key }, body: JSON.stringify({ systemInstruction: { parts: [{ text: systemText() }] }, contents, tools: TOOLS, generationConfig: { temperature: 0.7, maxOutputTokens: 250 } }) });
+        if (r2.ok){ const j = await r2.json(); goodModel = m; setAI('ok', m + ' · ' + ((performance.now() - t0) / 1000).toFixed(1) + 's'); return j; }
+      }
+      lastErr = r.status + '';
+      if (r.status === 400 || r.status === 401 || r.status === 403){ const t = await r.text(); if (/API key|PERMISSION|API_KEY/i.test(t)) throw new Error('key'); }
+    }catch(e){ if (e.message === 'key') throw e; lastErr = e.name === 'AbortError' ? 'timeout' : 'network'; }
+  }
+  throw new Error(lastErr);
+}
+async function runTool(name, args){
+  switch (name){
+    case 'move': mood('happy'); return { result: await robotMove(args.direction, args.cm) };
+    case 'turn': mood('happy'); return { result: await robotTurn(args.direction, args.degrees) };
+    case 'stop': stopRobot(); return { result: 'Stopped.' };
+    case 'beep': send('B:200'); return { result: 'Beeped.' };
+    case 'set_mood': mood(args.mood, 6000); return { result: 'Mood set.' };
+    case 'look': { const b64 = await snapshot(); return b64 ? { result: 'Photo taken.', image: b64 } : { result: 'Camera not available.' }; }
+    case 'switch_device': return { result: hubSwitch(Math.round(+args.device), !!args.on) };
+    case 'all_off': return { result: hubOK() ? (hubSend('R:A,0'), 'All devices switched off.') : 'Smart Hub is not connected.' };
+    case 'energy_report': return { result: hubReport() };
+    case 'play_song': return { result: playSong(String(args.query || '')) };
+    case 'stop_song': return { result: stopMusic() };
+    case 'set_reminder': return { result: addReminder(args) };
+    case 'reminder_done': return { result: reminderDone(args.person) };
+    case 'list_reminders': return { result: listReminders() };
+    case 'hub_screen': return { result: hubScreen(args || {}) };
+  }
+  return { result: 'Unknown action.' };
+}
+async function ask(text){
+  if (!text) return;
+  heard(text);
+  const w = text.toLowerCase().trim().replace(/[.!?]/g, '');
+  if (/^(stop|ruko|nillu|nillisu|bas)$/.test(w)){ stopRobot(); mood('calm'); say('Stopped.'); return; }
+  if (!S.key){ await speak('Please add my Gemini API key in settings first.'); openSheet('shSet'); return; }
+  mood('think'); setAI('warn', 'thinking…');
+  const startLen = history.length; let lastImg = null;
+  history.push({ role: 'user', parts: [{ text }] });
+  if (history.length > 12) history = history.slice(-12);
+  while (history.length && (history[0].role !== 'user' || history[0].parts.some(p => p.functionResponse))) history.shift();
+  try{
+    for (let round = 0; round < 5; round++){
+      const j = await gemini(history);
+      const content = j.candidates && j.candidates[0] && j.candidates[0].content;
+      if (!content || !content.parts){ await speak('Sorry, I could not think of an answer.'); break; }
+      history.push(content);
+      const calls = content.parts.filter(p => p.functionCall);
+      const textOut = content.parts.filter(p => p.text).map(p => p.text).join(' ').trim();
+      if (!calls.length){ mood('happy', 4000); await speak(textOut || 'Okay!'); break; }
+      if (textOut) speak(textOut);
+      const respParts = [], extra = [];
+      for (const p of calls){
+        const out = await runTool(p.functionCall.name, p.functionCall.args || {});
+        const img = out.image; delete out.image;
+        respParts.push({ functionResponse: { name: p.functionCall.name, response: out } });
+        if (img){ lastImg = img; extra.push({ inlineData: { mimeType: 'image/jpeg', data: img } }, { text: 'This is the photo from your camera right now.' }); }
+      }
+      history.push({ role: 'user', parts: respParts.concat(extra) });
+      mood('think');
+    }
+  }catch(e){
+    history = history.slice(0, startLen);
+    if (lastImg && e.message !== 'key'){
+      try{
+        const j = await gemini([{ role: 'user', parts: [{ text: text + ' (Look at this photo from your camera and answer.)' }, { inlineData: { mimeType: 'image/jpeg', data: lastImg } }] }]);
+        const t = ((j.candidates && j.candidates[0] && j.candidates[0].content && j.candidates[0].content.parts) || []).filter(p => p.text).map(p => p.text).join(' ').trim();
+        if (t){ mood('happy', 4000); await speak(t); setAI('', 'ready'); return; }
+      }catch(e2){}
+    }
+    mood('sad', 4000);
+    if (e.message === 'key') await speak('My API key is not working. Please check it in settings.');
+    else if (offlineCommand(text)) {}
+    else await speak('My internet brain is resting. I can still drive: say forward, back, left, right or stop.');
+  }
+  // remove photos from memory so later questions upload fast
+  history.forEach(c => { if (c.parts) c.parts = c.parts.filter(p => !p.inlineData); });
+  if (!$('tAI').textContent.includes('s')) setAI('', 'ready');
+}
+/* offline: simple driving words (English, Hindi, Kannada) */
+function offlineCommand(t){
+  t = t.toLowerCase();
+  const has = (...w) => w.some(x => t.includes(x));
+  if (has('stop song','stop music','stop the song','stop the music','nillisu haadu')){ speak(stopMusic()); return true; }
+  { const m = t.match(/^(?:aria\s+)?play\s+(.+)$/); if (m){ const f = findSong(m[1]); if (f){ playInside(f); speak('Playing ' + f.name + '.'); return true; } } }
+  if (hubOK() && /^(aria\s+)?display\s+/.test(t)){ const r = hubScreen({ mode: 'text', text: t.replace(/^(aria\s+)?display\s+/, '') }); speak(r); return true; }
+  if (hubOK() && has('clear screen')){ speak(hubScreen({ mode: 'readings' })); return true; }
+  if (has('stop','ruko','ruk ','nillu','nillisu')){ stopRobot(); speak('Stopped.'); return true; }
+  if (has('forward','aage','munde','front')){ robotMove('forward', 50); speak('Going forward.'); return true; }
+  if (has('back','peeche','hinde')){ robotMove('backward', 50); speak('Going back.'); return true; }
+  if (has('left','baaye','baen','edakke')){ robotTurn('left', 90); speak('Turning left.'); return true; }
+  if (has('right','daaye','daen','balakke')){ robotTurn('right', 90); speak('Turning right.'); return true; }
+  return false;
+}
+
+/* ===================== LISTENING ===================== */
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+let rec = null, listening = false, wakeArmed = false, busy = false;
+const WAKE = /\b(aria|ariya|arya|aaria|area|ariyaa|ಆರಿಯಾ|ಏರಿಯಾ|आरिया|एरिया)\b/i;
+function makeRec(continuous){
+  const r = new SR();
+  r.lang = S.lang; r.interimResults = true; r.continuous = continuous; r.maxAlternatives = 1;
+  return r;
+}
+function stopListening(){ try{ rec && rec.abort(); }catch(e){} listening = false; $('talk').classList.remove('on'); }
+function listenOnce(){
+  if (!SR){ speak('This browser cannot hear me. Please use Chrome.'); return; }
+  if (busy) return;
+  wakeArmed = false; stopListening(); speechSynthesis.cancel();
+  rec = makeRec(false); listening = true; $('talk').classList.add('on'); mood('listen'); duck(true);
+  let finalText = '';
+  rec.onresult = e => { let t = ''; for (const r of e.results) t += r[0].transcript; heard(t); if (e.results[e.results.length - 1].isFinal) finalText = t; };
+  rec.onerror = () => {};
+  rec.onend = async () => {
+    listening = false; $('talk').classList.remove('on'); duck(false);
+    if (finalText.trim()){ busy = true; await ask(finalText.trim()); busy = false; } else mood('calm');
+    resumeWake();
+  };
+  try{ rec.start(); }catch(e){}
+}
+function resumeWake(){
+  if (!S.wake || !SR || speaking || busy || listening || document.hidden) return;
+  rec = makeRec(true); listening = true; wakeArmed = true;
+  rec.onresult = e => {
+    const res = e.results[e.results.length - 1];
+    const t = res[0].transcript;
+    if (WAKE.test(t)){
+      const after = t.split(WAKE).pop().replace(/^[\s,.!?]+/, '');
+      if (res.isFinal){
+        stopListening();
+        if (after.split(' ').length >= 2){ busy = true; ask(after).finally(() => { busy = false; resumeWake(); }); }
+        else { speak('Yes?').then(listenOnce); }
+      }
+    }
+  };
+  rec.onerror = () => {};
+  rec.onend = () => { listening = false; if (wakeArmed && !speaking && !busy) setTimeout(resumeWake, 400); };
+  try{ rec.start(); }catch(e){ listening = false; }
+}
+
+/* ===================== DRIVE PAD ===================== */
+let holdDir = null, holdTimer = null;
+document.querySelectorAll('.pad [data-d]').forEach(b => {
+  const go = e => { e.preventDefault(); holdDir = b.dataset.d; b.classList.add('held'); send('D:' + holdDir + ',100'); clearInterval(holdTimer); holdTimer = setInterval(() => send('D:' + holdDir + ',100'), 200); };
+  const end = e => { e.preventDefault(); if (!holdDir) return; holdDir = null; b.classList.remove('held'); clearInterval(holdTimer); stopRobot(); };
+  b.addEventListener('pointerdown', go); b.addEventListener('pointerup', end); b.addEventListener('pointerleave', end); b.addEventListener('pointercancel', end);
+});
+
+/* ===================== UI WIRING ===================== */
+function openSheet(id){ $(id).classList.add('open'); }
+document.querySelectorAll('[data-close]').forEach(b => b.onclick = () => b.closest('.sheet').classList.remove('open'));
+$('face').onclick = () => { goFull(); listenOnce(); };
+$('talk').onclick = () => { goFull(); if (listening && !wakeArmed) stopListening(); else listenOnce(); };
+$('stopBig').onclick = () => { stopRobot(); speechSynthesis.cancel(); mood('calm'); say('Stopped.'); };
+$('padStop').onclick = () => stopRobot();
+$('bConnect').onclick = () => { if (robotOK()){ toast('Robot already connected'); } else connectRobot(); };
+$('bDrive').onclick = () => openSheet('shDrive');
+$('bHub').onclick = () => { if (hubOK()) toast('Hub already connected'); else connectHub(); };
+$('bBeep').onclick = () => send('B:200');
+$('bL90').onclick = () => robotTurn('left', 90);
+$('bR90').onclick = () => robotTurn('right', 90);
+$('bSettings').onclick = () => {
+  $('sKey').value = S.key; $('sLang').value = S.lang; $('sModels').value = S.models; $('sWake').value = S.wake ? '1' : '0'; $('sCms').value = S.cms; $('sTrim').value = S.trim; $('sDev').value = S.devices; $('sAuto').value = S.autoSec; $('sSongs').value = S.songs; showReminders();
+  openSheet('shSet');
+};
+$('bSave').onclick = () => {
+  S.key = $('sKey').value.trim(); S.lang = $('sLang').value; S.models = $('sModels').value.trim() || S.models; S.wake = $('sWake').value === '1';
+  S.devices = $('sDev').value.trim() || S.devices; S.autoSec = Math.max(10, Math.min(3600, Math.round(+$('sAuto').value || 30)));
+  store.set('devices', S.devices); store.set('autosec', S.autoSec); hubSend('AT:' + S.autoSec); hubSync();
+  S.cms = Math.max(10, +$('sCms').value || 45); S.trim = Math.max(-30, Math.min(30, Math.round(+$('sTrim').value || 0)));
+  S.songs = $('sSongs').value; store.set('songs', S.songs);
+  store.set('key', S.key); store.set('lang', S.lang); store.set('models', S.models); store.set('wake', S.wake ? '1' : '0'); store.set('cms', S.cms); store.set('trim', S.trim);
+  send('CFG:trim=' + S.trim);
+  toast('Saved'); $('shSet').classList.remove('open');
+  stopListening(); resumeWake();
+};
+$('bTest').onclick = () => { $('shSet').classList.remove('open'); ask('Say hello and introduce yourself in one sentence.'); };
+$('bSelf').onclick = () => { if (!robotOK()) toast('Connect the robot first'); else send('SELF'); };
+$('bFull').onclick = () => goFull();
+async function goFull(){
+  try{ if (!document.fullscreenElement) await document.documentElement.requestFullscreen(); }catch(e){}
+  try{ await screen.orientation.lock('landscape'); }catch(e){}
+  try{ if (!goFull.lock && navigator.wakeLock) goFull.lock = await navigator.wakeLock.request('screen'); }catch(e){}
+}
+document.addEventListener('visibilitychange', () => { if (document.hidden){ stopListening(); stopRobot(); } else { goFull.lock = null; resumeWake(); } });
+
+/* ===================== OTA (robot code update) ===================== */
+let otaWaiter = null;
+function waitOta(ms){ return new Promise(res => { const t = setTimeout(() => { otaWaiter = null; res('timeout'); }, ms); otaWaiter = s => { clearTimeout(t); otaWaiter = null; res(s); }; }); }
+let otaRunning = false;
+async function runOta(toHub){
+  if (otaRunning) return;
+  const who = toHub ? 'Hub' : 'Robot';
+  const f = $('otaFile').files[0];
+  if (!f) return toast('Choose the .bin file first');
+  if (toHub ? !(hubOK() && hubOta) : !(robotOK() && otaCh)) return toast('Connect the ' + who + ' first');
+  if (!/\.bin$/i.test(f.name)) return toast('That is not a .bin file');
+  const buf = new Uint8Array(await f.arrayBuffer());
+  const ch = toHub ? hubOta : otaCh;
+  otaRunning = true;
+  try{
+    $('otaMsg').textContent = who + ': starting…';
+    if (toHub) hubSend('OTA:' + buf.length); else send('OTA:' + buf.length);
+    const st = await waitOta(8000);
+    if (st !== 'ready'){ $('otaMsg').textContent = who + ' did not accept the update (' + st + ').'; return; }
+    let size = 180, n = 0;
+    for (let i = 0; i < buf.length; ){
+      const part = buf.slice(i, i + size);
+      try{ await ch.writeValue(part); i += part.length; }
+      catch(e){ if (size > 20){ size = 20; continue; } $('otaMsg').textContent = 'Update failed at ' + Math.round(i / buf.length * 100) + '%. ' + who + ' keeps its old code.'; return; }
+      if (++n % 40 === 0) $('otaMsg').textContent = who + ': sending… ' + Math.round(i / buf.length * 100) + '%';
+    }
+    $('otaMsg').textContent = 'Sent 100%. Waiting for ' + who + '…';
+    const fin = await waitOta(20000);
+    $('otaMsg').textContent = fin === 'done' ? 'Done! ' + who + ' is restarting with the new code. Connect it again in 10 seconds.' : who + ' says: ' + fin;
+  } finally { otaRunning = false; }
+}
+$('bOta').onclick = () => runOta(false);
+$('bOtaHub').onclick = () => runOta(true);
+
+
+/* ===================== SMART HUB (Bluetooth) ===================== */
+let hubOta = null;
+let hubDev = null, hubRx = null, hubBuf = '', hub = null, hubLastSt = 'OK', hubWriting = Promise.resolve();
+const hubOK = () => !!(hubDev && hubDev.gatt && hubDev.gatt.connected && hubRx);
+function setHubChip(state){
+  $('dHub').className = 'dot ' + (state === 'ok' ? 'ok' : state === 'wait' ? 'warn' : 'bad');
+  $('tHub').textContent = state === 'wait' ? 'Hub…' : 'Hub';
+}
+function hubSend(cmd){
+  if (!hubOK()) return Promise.resolve(false);
+  const data = new TextEncoder().encode(cmd + '\n');
+  let chain = hubWriting;
+  for (let i = 0; i < data.length; i += 20){
+    const part = data.slice(i, i + 20);
+    chain = chain.then(() => hubRx.writeValue(part));
+  }
+  hubWriting = chain.then(() => true).catch(() => false);
+  return hubWriting;
+}
+const asciiText = (t, n) => String(t || '').normalize('NFKD').replace(/[^\x20-\x7E]/g, '').replace(/\s+/g, ' ').trim().slice(0, n || 120);
+function hubSync(){
+  if (!hubOK()) return;
+  const n = devNames();
+  for (let i = 0; i < 4; i++) if (n[i]) hubSend('NAME:' + (i + 1) + ',' + asciiText(n[i], 16));
+  hubSend('ROOM:1,' + asciiText((n[0] || 'Hall').split(' ')[0], 10));
+  hubSend('ROOM:2,' + asciiText((n[2] || 'Bedroom').split(' ')[0], 10));
+  const d = new Date(); hubSend('TIME:' + d.getHours() + ',' + d.getMinutes() + ',' + d.getSeconds());
+}
+function faceCaption(t, sec){
+  const el = $('faceCap'); clearTimeout(faceCaption.t);
+  if (!t){ el.style.display = 'none'; return; }
+  el.textContent = t; el.style.display = 'block';
+  faceCaption.t = setTimeout(() => el.style.display = 'none', Math.min(3600, sec || 60) * 1000);
+}
+function hubScreen(a){
+  if (!hubOK()) return 'Smart Hub is not connected.';
+  const KEYS = ['watts','volts','amps','units','rooms','devices'], LET = 'wvaurd';
+  const out = [];
+  const arr = x => Array.isArray(x) ? x : (x ? [x] : []);
+  if (arr(a.show).length || arr(a.add).length || arr(a.remove).length){
+    const mask = hub && typeof hub.sh === 'number' ? hub.sh : 63;
+    const set = new Set(arr(a.show).length ? arr(a.show) : KEYS.filter((k, i) => (mask >> i) & 1));
+    arr(a.add).forEach(k => set.add(k)); arr(a.remove).forEach(k => set.delete(k));
+    const list = KEYS.filter(k => set.has(k));
+    hubSend('SHOW:' + (list.length ? list.map(k => LET[KEYS.indexOf(k)]).join(',') : 'none'));
+    if (hub) hub.sh = list.reduce((m, k) => m | (1 << KEYS.indexOf(k)), 0);
+    out.push('The Hub screen now shows: ' + (list.join(', ') || 'nothing') + '.');
+  }
+  if (a.mode === 'readings'){ hubSend('CLR'); faceCaption(''); out.push('The Hub screen is back to live readings.'); }
+  else if (a.mode === 'text' || a.mode === 'song'){
+    const txt = asciiText(a.text);
+    if (!txt) return 'Tell me the words to show, in English letters.';
+    const sec = Math.max(3, Math.min(3600, Math.round(+a.seconds || (a.mode === 'song' ? 240 : 60))));
+    hubSend((a.mode === 'song' ? 'SONG:' : 'TXT:') + sec + ',' + txt);
+    faceCaption((a.mode === 'song' ? '♫ ' : '') + txt, sec);
+    out.push('Showing "' + txt + '" on the Hub screen for ' + sec + ' seconds.' + (hub && hub.tft === 0 ? ' (Note: the Hub screen is switched off.)' : ''));
+  }
+  return out.join(' ') || 'Done.';
+}
+async function connectHub(){
+  if (!navigator.bluetooth){ speak('This browser cannot use Bluetooth.'); return; }
+  try{
+    setHubChip('wait');
+    hubDev = await navigator.bluetooth.requestDevice({ filters: [{ name: 'ARIA-Hub' }], optionalServices: [SVC] });
+    hubDev.addEventListener('gattserverdisconnected', onHubLost);
+    await openHub();
+  }catch(e){ setHubChip('bad'); if (e && e.name !== 'NotFoundError') toast('Hub: ' + e.message); }
+}
+async function openHub(){
+  const srv = await hubDev.gatt.connect();
+  const svc = await srv.getPrimaryService(SVC);
+  hubRx = await svc.getCharacteristic(RXU);
+  try{ hubOta = await svc.getCharacteristic(OTAU); }catch(e){ hubOta = null; }
+  const tx = await svc.getCharacteristic(TXU);
+  await tx.startNotifications();
+  tx.addEventListener('characteristicvaluechanged', ev => onHubData(new TextDecoder().decode(ev.target.value)));
+  setHubChip('ok');
+  hubSend('AT:' + S.autoSec);
+  hubSync();
+  speak('My Smart Hub is connected.');
+}
+async function onHubLost(){
+  hubRx = null; setHubChip('bad');
+  for (let i = 0; i < 5 && hubDev && !hubDev.gatt.connected; i++){
+    await new Promise(r => setTimeout(r, 1500));
+    try{ await openHub(); return; }catch(e){}
+  }
+}
+function onHubData(chunk){
+  hubBuf += chunk;
+  let nl;
+  while ((nl = hubBuf.indexOf('\n')) >= 0){
+    const line = hubBuf.slice(0, nl).trim(); hubBuf = hubBuf.slice(nl + 1);
+    if (!line.startsWith('{')) continue;
+    try{ handleHub(JSON.parse(line)); }catch(e){}
+  }
+  if (hubBuf.length > 2000) hubBuf = '';
+}
+function handleHub(j){
+  if (j.t === 'ota'){ $('otaMsg').textContent = 'Hub update: ' + j.st; if (otaWaiter) otaWaiter(j.st); return; }
+  if (j.t !== 'h') return;
+  hub = j;
+  const names = devNames();
+  const on = j.r.map((v, i) => v ? (names[i] || ('Device ' + (i + 1))) : null).filter(Boolean);
+  $('hubLine').textContent = ' · Hub: ' + (on.length ? on.join(', ') + ' ON' : 'all OFF') + ' · ' + Math.round(j.w) + ' W';
+  if (j.st !== hubLastSt){
+    if (j.st === 'AUTO_OFF_1' || j.st === 'AUTO_OFF_2'){
+      const room = j.st === 'AUTO_OFF_1' ? (names[0] || 'room 1').split(' ')[0] : (names[2] || 'room 2').split(' ')[0];
+      mood('happy', 3000);
+      speak('Nobody is in the ' + room + ', so I switched it off to save electricity.');
+    }
+    hubLastSt = j.st;
+  }
+}
+function hubSwitch(n, on){
+  if (!hubOK()) return 'Smart Hub is not connected.';
+  if (!(n >= 1 && n <= 4)) return 'There is no device ' + n + '.';
+  hubSend('R:' + n + ',' + (on ? 1 : 0));
+  return (devNames()[n - 1] || ('Device ' + n)) + ' switched ' + (on ? 'ON' : 'OFF') + '.';
+}
+function hubReport(){
+  if (!hubOK() || !hub) return 'Smart Hub is not connected.';
+  const names = devNames();
+  const on = hub.r.map((v, i) => v ? names[i] : null).filter(Boolean);
+  return 'Power now ' + hub.w.toFixed(1) + ' W' + (hub.pz ? ' (measured by the energy meter, ' + hub.v.toFixed(0) + ' V)' : ' (estimated)') +
+    '. Energy used ' + (hub.wh / 1000).toFixed(3) + ' units. ON: ' + (on.length ? on.join(', ') : 'nothing') +
+    '. Room 1 empty for ' + hub.e[0] + ' s, room 2 empty for ' + hub.e[1] + ' s. Auto-off after ' + hub.as + ' s.';
+}
+
+/* ===================== SONGS ===================== */
+/* ===================== MUSIC INSIDE ARIA (YouTube player, no tap) ===================== */
+let ytPlayer = null, ytLoad = null, musicSong = null, musicVol = 70, musicShownOnHub = false;
+function ytId(u){ u = String(u || '').trim(); const m = u.match(/(?:youtu\.be\/|[?&]v=|shorts\/|embed\/)([A-Za-z0-9_-]{11})/); return m ? m[1] : (/^[A-Za-z0-9_-]{11}$/.test(u) ? u : ''); }
+function songList(){
+  return String(S.songs || '').split('\n').map(l => { const i = l.indexOf('='); if (i < 0) return null;
+    const name = l.slice(0, i).trim(), id = ytId(l.slice(i + 1)); return name && id ? { name, id } : null; }).filter(Boolean);
+}
+function findSong(q){
+  const norm = x => String(x).toLowerCase().normalize('NFKD').replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+  const nq = norm(q); if (!nq) return null;
+  let best = null, bestScore = 0;
+  for (const s of songList()){
+    const ns = norm(s.name); let score = 0;
+    if (ns === nq) score = 100;
+    else if (nq.includes(ns) || ns.includes(nq)) score = 50;
+    else score = nq.split(' ').filter(w => w.length > 2 && ns.includes(w)).length * 10;
+    if (score > bestScore){ bestScore = score; best = s; }
+  }
+  return bestScore >= 10 ? best : null;
+}
+function loadYT(){
+  if (window.YT && window.YT.Player) return Promise.resolve();
+  if (ytLoad) return ytLoad;
+  ytLoad = new Promise((res, rej) => {
+    window.onYouTubeIframeAPIReady = () => res();
+    const sc = document.createElement('script'); sc.src = 'https://www.youtube.com/iframe_api';
+    sc.onerror = () => rej(new Error('yt'));
+    document.head.appendChild(sc);
+    setTimeout(() => rej(new Error('yt timeout')), 15000);
+  }).catch(e => { ytLoad = null; throw e; });
+  return ytLoad;
+}
+function duck(on){ try{ if (ytPlayer && ytPlayer.setVolume && musicSong) ytPlayer.setVolume(on ? 15 : musicVol); }catch(e){} }
+function onYtState(e){
+  if (!musicSong) return;
+  if (e.data === 1 && !musicShownOnHub){            // playing: show it on the Hub for exactly the song's length
+    musicShownOnHub = true; mood('happy', 4000);
+    const d = Math.round(ytPlayer.getDuration ? ytPlayer.getDuration() : 0) || 240;
+    if (hubOK()) hubSend('SONG:' + Math.max(3, Math.min(3600, d)) + ',' + asciiText(musicSong.name));
+  }
+  if (e.data === 0) stopMusic();                     // song ended
+}
+function onYtError(e){
+  const s = musicSong; stopMusic();
+  if (s){ speak('This song cannot play inside me. Tap the Play button to open it in YouTube.'); showSongButton(s.name); }
+}
+async function playInside(song){
+  try{ await loadYT(); }catch(e){ showSongButton(song.name); speak('I cannot load the music player. Tap the Play button.'); return; }
+  musicSong = song; musicShownOnHub = false;
+  $('musicTitle').textContent = '♫ ' + song.name; $('musicBox').style.display = 'block';
+  if (!ytPlayer){
+    ytPlayer = new YT.Player('yt', { width: 216, height: 122, videoId: song.id,
+      playerVars: { autoplay: 1, playsinline: 1, rel: 0 },
+      events: { onReady: ev => { ev.target.setVolume(musicVol); ev.target.playVideo(); }, onStateChange: onYtState, onError: onYtError } });
+  } else { try{ ytPlayer.setVolume(musicVol); ytPlayer.loadVideoById(song.id); }catch(e){} }
+  setTimeout(() => { try{ if (musicSong === song && ytPlayer.getPlayerState && [1, 3].indexOf(ytPlayer.getPlayerState()) < 0) toast('Tap the small video once to start the song'); }catch(e){} }, 5000);
+}
+function stopMusic(){
+  if (!musicSong){ $('musicBox').style.display = 'none'; return 'No song is playing.'; }
+  musicSong = null;
+  try{ ytPlayer && ytPlayer.stopVideo && ytPlayer.stopVideo(); }catch(e){}
+  $('musicBox').style.display = 'none';
+  if (musicShownOnHub && hubOK()) hubSend('CLR');
+  musicShownOnHub = false;
+  return 'Song stopped.';
+}
+$('musicStop').onclick = () => { stopMusic(); };
+function showSongButton(q){
+  const b = $('songBtn');
+  b.href = 'https://music.youtube.com/search?q=' + encodeURIComponent(q); b.textContent = '▶ Play ' + q; b.style.display = 'block';
+  setTimeout(() => b.style.display = 'none', 15000);
+}
+function playSong(q){
+  if (!q) return 'Which song?';
+  const found = findSong(q);
+  if (found){ playInside(found); return 'Playing ' + found.name + ' now.'; }
+  const url = 'https://music.youtube.com/search?q=' + encodeURIComponent(q);
+  const b = $('songBtn');
+  b.href = url; b.textContent = '▶ Play ' + q; b.style.display = 'block';
+  setTimeout(() => b.style.display = 'none', 15000);
+  let w = null; try{ w = window.open(url, '_blank'); }catch(e){}
+  return w ? 'Opening the song ' + q + ' in YouTube Music.' : 'Tap the Play button on my screen to start ' + q + '.';
+}
+$('songBtn').onclick = () => setTimeout(() => $('songBtn').style.display = 'none', 300);
+
+/* ===================== REMINDERS ===================== */
+let reminders = [];
+try{ reminders = JSON.parse(store.get('rem', '[]')) || []; }catch(e){ reminders = []; }
+const saveRem = () => store.set('rem', JSON.stringify(reminders));
+function addReminder(a){
+  const m = String(a.time || '').match(/^(\d{1,2}):(\d{2})/);
+  if (!m) return 'I need the time as hours and minutes.';
+  const hh = ('0' + Math.min(23, +m[1])).slice(-2), mm = ('0' + Math.min(59, +m[2])).slice(-2);
+  reminders.push({ id: Date.now(), person: String(a.person || 'someone'), task: String(a.task || 'your task'), time: hh + ':' + mm, daily: !!a.daily, firedOn: '', tries: 0, nextAt: 0 });
+  saveRem(); showReminders();
+  return 'Reminder set: ' + a.person + ', ' + a.task + ' at ' + hh + ':' + mm + (a.daily ? ', every day.' : '.');
+}
+function listReminders(){
+  if (!reminders.length) return 'No reminders.';
+  return reminders.map(r => r.person + ': ' + r.task + ' at ' + r.time + (r.daily ? ' daily' : '')).join('; ');
+}
+function reminderDone(person){
+  const due = reminders.filter(r => r.tries > 0 && (!person || r.person.toLowerCase().includes(String(person).toLowerCase())));
+  if (!due.length) return 'There is no reminder waiting right now.';
+  due.forEach(r => { r.tries = 0; r.nextAt = 0; if (!r.daily) r.done = true; });
+  reminders = reminders.filter(r => !r.done); saveRem(); showReminders();
+  return 'Great, marked as done.';
+}
+function showReminders(){
+  $('remList').innerHTML = reminders.length ? '<b>Reminders</b><br>' + reminders.map((r, i) =>
+    r.time + ' · ' + r.person + ' · ' + r.task + (r.daily ? ' (daily)' : '') + ' <button class="btn" data-del="' + i + '" style="min-height:32px;padding:0 8px">Delete</button>').join('<br>') : '<b>Reminders</b><br>None yet. Say: “ARIA, remind Ajji to take medicine box 1 at 12:30.”';
+  document.querySelectorAll('[data-del]').forEach(b => b.onclick = () => { reminders.splice(+b.dataset.del, 1); saveRem(); showReminders(); });
+}
+$('bRem').onclick = showReminders;
+setInterval(() => {
+  const now = new Date(), hm = now.toTimeString().slice(0, 5), today = now.toDateString(), t = Date.now();
+  for (const r of reminders){
+    if (r.time === hm && r.firedOn !== today){ r.firedOn = today; r.tries = 1; r.nextAt = t + 120000; announce(r); saveRem(); }
+    else if (r.tries > 0 && r.nextAt && t >= r.nextAt){
+      if (r.tries >= 3){ r.tries = 0; r.nextAt = 0; speak(r.person + ' has not confirmed: ' + r.task + '. Please check on them.'); }
+      else { r.tries++; r.nextAt = t + 120000; announce(r); }
+      saveRem();
+    }
+  }
+}, 15000);
+function announce(r){
+  mood('surprised', 4000); send('B:300');
+  toast('Reminder: ' + r.person + ' · ' + r.task);
+  speak(r.person + ', it is time: ' + r.task + '. Tell me when it is done.');
+}
+
+/* ===================== START ===================== */
+setAI('', S.key ? 'ready' : 'add key in ⚙');
+if (!S.key) say('Hi! Open ⚙ Settings and paste my Gemini API key, then tap Connect.');
+setTimeout(resumeWake, 1200);
+</script>
+</body>
+</html>
